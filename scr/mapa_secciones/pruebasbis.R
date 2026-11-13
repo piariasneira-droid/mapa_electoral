@@ -2,7 +2,9 @@
 library(dplyr)
 library(purrr)
 library(arrow)
-library(plotly)
+library(sf)
+library(leaflet)
+library(htmlwidgets)
 
 # Funciones ----
 source("scr/mapa_secciones/fun/config.R")
@@ -10,10 +12,9 @@ source("scr/mapa_secciones/fun/funauxbis.R")
 source("scr/mapa_secciones/fun/salvarenhtml.R")
 
 # Config ----
-
 ruta_geo <- file.path(
   "output",
-  "geojsons"
+  "geo_parquet"
 )
 
 ruta_relmunicipios <- file.path(
@@ -31,7 +32,7 @@ ruta_resultados <- file.path(
 
 dir_output <- file.path(
   "output",
-  "mapas_fuencarral"
+  "mapas_espana"
 )
 
 # Lectura ----
@@ -69,7 +70,7 @@ message(
 
 tiempo_participacion <- system.time({
   
-  mapa_participacion <- .mapa_plotly(
+  mapa_participacion <- .mapa_leaflet(
     datos = datos_mapa,
     variable = "participacion_pct",
     partidos = PARTID,
@@ -90,7 +91,7 @@ message(
 
 tiempo_ganador <- system.time({
   
-  mapa_ganador <- .mapa_plotly(
+  mapa_ganador <- .mapa_leaflet(
     datos = datos_mapa,
     variable = "ganador",
     partidos = PARTID,
@@ -135,7 +136,7 @@ tiempo_partidos <- system.time({
           return(NULL)
         }
         
-        .mapa_plotly(
+        .mapa_leaflet(
           datos = datos_mapa,
           variable = variable,
           partidos = PARTID,

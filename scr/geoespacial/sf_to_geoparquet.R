@@ -5,6 +5,7 @@ library(sf)
 library(dplyr)
 library(stringr)
 library(arrow)
+library(geoarrow)
 library(rmapshaper)
 
 source(

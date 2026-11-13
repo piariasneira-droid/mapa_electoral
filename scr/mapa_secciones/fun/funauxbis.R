@@ -1,4 +1,6 @@
-# Lectura directa de GeoJSON provinciales ----
+# Dependencias: arrow, geoarrow, sf, dplyr, stringr, openxlsx, leaflet
+
+# Utilidades ----
 
 .normalizar_codigo_geo <- function(
     x,
@@ -12,503 +14,185 @@
   x <- dplyr::na_if(x, "")
   
   if (!is.null(ancho)) {
-    
-    x <- stringr::str_pad(
-      x,
-      width = ancho,
-      side = "left",
-      pad = "0"
-    )
+    x <- stringr::str_pad(x, width = ancho, side = "left", pad = "0")
   }
   
   x
 }
 
 
-.extraer_cusec_feature <- function(feature) {
-  
-  propiedades <- feature$properties
-  
-  if (is.null(propiedades)) {
-    return(NA_character_)
-  }
-  
-  candidatos <- c(
-    "cusec",
-    "CUSEC",
-    "cuseccion",
-    "CUSECCION",
-    "cod_cusec",
-    "codigo_cusec",
-    "geo_id"
-  )
-  
-  encontrados <- intersect(
-    candidatos,
-    names(propiedades)
-  )
-  
-  if (length(encontrados) == 0) {
-    return(NA_character_)
-  }
-  
-  valor <- propiedades[[encontrados[1]]]
-  
-  if (
-    is.null(valor) ||
-    length(valor) == 0
-  ) {
-    return(NA_character_)
-  }
-  
-  .normalizar_codigo_geo(
-    x = valor[1],
-    ancho = 10
-  )
-}
+# Lectura de secciones desde GeoParquet ----
 
-
-.asignar_geo_id_feature <- function(
-    feature,
-    cusec
+# Elige el fichero secciones_<año>.parquet. Si no existe el año exacto
+# de la elección, usa el último año disponible anterior.
+.ruta_geo_secciones <- function(
+    ruta_geo,
+    anho
 ) {
   
-  if (is.null(feature$properties)) {
-    feature$properties <- list()
-  }
-  
-  feature$properties$geo_id <- as.character(cusec)
-  
-  feature
-}
-
-
-.leer_geojson_provincia <- function(
+  exacta <- file.path(
     ruta_geo,
-    anho,
-    provincia
-) {
-  
-  fichero <- file.path(
-    ruta_geo,
-    as.character(anho),
-    paste0(
-      "prov_",
-      sprintf(
-        "%02d",
-        as.integer(provincia)
-      ),
-      ".geojson"
-    )
+    sprintf("secciones_%s.parquet", anho)
   )
   
-  if (!file.exists(fichero)) {
-    
+  if (file.exists(exacta)) {
+    return(exacta)
+  }
+  
+  disponibles <- list.files(
+    ruta_geo,
+    pattern = "^secciones_[0-9]{4}\\.parquet$"
+  )
+  
+  anhos <- as.integer(
+    stringr::str_extract(disponibles, "[0-9]{4}")
+  )
+  
+  anhos <- anhos[anhos <= anho]
+  
+  if (length(anhos) == 0) {
     stop(
-      "No existe el GeoJSON provincial: ",
-      normalizePath(
-        fichero,
-        mustWork = FALSE
-      ),
+      "No hay ningún secciones_<año>.parquet <= ", anho,
+      " en: ", normalizePath(ruta_geo, mustWork = FALSE),
       call. = FALSE
     )
   }
   
   message(
-    "Leyendo: ",
-    normalizePath(
-      fichero,
-      mustWork = FALSE
-    )
+    "No existe secciones_", anho, ".parquet; se usa el año ", max(anhos), "."
   )
   
-  tiempo <- system.time({
-    
-    geojson <- jsonlite::fromJSON(
-      fichero,
-      simplifyVector = FALSE
-    )
-  })
-  
-  if (
-    is.null(geojson$type) ||
-    !identical(
-      as.character(geojson$type),
-      "FeatureCollection"
-    )
-  ) {
-    
-    stop(
-      "El fichero no contiene un FeatureCollection válido: ",
-      fichero,
-      call. = FALSE
-    )
-  }
-  
-  if (
-    is.null(geojson$features) ||
-    length(geojson$features) == 0
-  ) {
-    
-    stop(
-      "El GeoJSON no contiene features: ",
-      fichero,
-      call. = FALSE
-    )
-  }
-  
-  message(
-    "  Features: ",
-    format(
-      length(geojson$features),
-      big.mark = ".",
-      scientific = FALSE
-    ),
-    ". Tiempo: ",
-    round(
-      tiempo[["elapsed"]],
-      2
-    ),
-    " segundos."
+  file.path(
+    ruta_geo,
+    sprintf("secciones_%s.parquet", max(anhos))
   )
-  
-  geojson
 }
 
 
-.leer_geojson_provincias <- function(
+# Devuelve un sf (WGS84) con: cusec, prov, mun, distrito, seccion,
+# provmun y geometry. Los filtros territoriales se aplican en disco.
+.leer_geo_secciones <- function(
     ruta_geo,
     anho,
-    provincias
-) {
-  
-  if (
-    is.null(provincias) ||
-    length(provincias) == 0
-  ) {
-    
-    stop(
-      paste0(
-        "Es necesario seleccionar al menos una provincia porque ",
-        "los GeoJSON están particionados por provincia."
-      ),
-      call. = FALSE
-    )
-  }
-  
-  provincias <- unique(
-    as.integer(provincias)
-  )
-  
-  provincias <- provincias[
-    !is.na(provincias)
-  ]
-  
-  geojsons <- purrr::map(
-    provincias,
-    function(provincia) {
-      
-      .leer_geojson_provincia(
-        ruta_geo = ruta_geo,
-        anho = anho,
-        provincia = provincia
-      )
-    }
-  )
-  
-  features <- unlist(
-    purrr::map(
-      geojsons,
-      "features"
-    ),
-    recursive = FALSE,
-    use.names = FALSE
-  )
-  
-  if (length(features) == 0) {
-    
-    stop(
-      "No se ha leído ninguna feature de los GeoJSON provinciales.",
-      call. = FALSE
-    )
-  }
-  
-  list(
-    type = "FeatureCollection",
-    features = features
-  )
-}
-
-
-.preparar_geojson <- function(
-    geojson,
     filtros
 ) {
   
-  features <- geojson$features
+  ruta <- .ruta_geo_secciones(ruta_geo, anho)
   
-  cusec <- purrr::map_chr(
-    features,
-    .extraer_cusec_feature
-  )
+  message("Leyendo: ", normalizePath(ruta, mustWork = FALSE))
   
-  validos <- (
-    !is.na(cusec) &
-      stringr::str_detect(
-        cusec,
-        "^[0-9]{10}$"
-      )
-  )
+  prov_sel <- sprintf("%02d", as.integer(filtros$provincias))
   
-  if (any(!validos)) {
+  ds <- arrow::open_dataset(ruta) |>
+    dplyr::filter(substr(cusec, 1, 2) %in% prov_sel)
+  
+  if (length(filtros$municipios) > 0) {
     
-    warning(
-      "Se excluirán ",
-      sum(!validos),
-      " features sin CUSEC válido.",
-      call. = FALSE
-    )
+    # filtros$municipios son códigos provmun (p. ej. 28079)
+    mun_sel <- sprintf("%05d", as.integer(filtros$municipios))
     
-    features <- features[validos]
-    cusec <- cusec[validos]
+    ds <- ds |>
+      dplyr::filter(substr(cusec, 1, 5) %in% mun_sel)
   }
   
-  if (length(features) == 0) {
+  if (length(filtros$distritos) > 0) {
     
-    stop(
-      "No quedan features con CUSEC válido.",
-      call. = FALSE
-    )
+    dis_sel <- sprintf("%02d", as.integer(filtros$distritos))
+    
+    ds <- ds |>
+      dplyr::filter(substr(cusec, 6, 7) %in% dis_sel)
   }
   
-  indice <- data.frame(
-    posicion = seq_along(features),
-    cusec = cusec,
-    prov = as.integer(
-      stringr::str_sub(
-        cusec,
-        1,
-        2
-      )
-    ),
-    mun = as.integer(
-      stringr::str_sub(
-        cusec,
-        3,
-        5
-      )
-    ),
-    distrito = as.integer(
-      stringr::str_sub(
-        cusec,
-        6,
-        7
-      )
-    ),
-    seccion = as.integer(
-      stringr::str_sub(
-        cusec,
-        8,
-        10
-      )
-    ),
-    stringsAsFactors = FALSE
-  )
+  if (length(filtros$secciones) > 0) {
+    
+    sec_sel <- sprintf("%03d", as.integer(filtros$secciones))
+    
+    ds <- ds |>
+      dplyr::filter(substr(cusec, 8, 10) %in% sec_sel)
+  }
   
-  indice <- indice |>
+  tiempo <- system.time({
+    
+    geo <- ds |>
+      dplyr::select(cusec, geometry) |>
+      dplyr::collect() |>
+      dplyr::mutate(
+        geometry = sf::st_as_sfc(geometry)
+      ) |>
+      sf::st_as_sf() |>
+      sf::st_transform(4326)       # Leaflet exige WGS84
+  })
+  
+  if (nrow(geo) == 0) {
+    stop("Los filtros territoriales no dejan ninguna sección.", call. = FALSE)
+  }
+  
+  geo <- geo |>
     dplyr::mutate(
-      provmun = prov * 1000L + mun
+      cusec    = .normalizar_codigo_geo(cusec, ancho = 10),
+      prov     = as.integer(stringr::str_sub(cusec, 1, 2)),
+      mun      = as.integer(stringr::str_sub(cusec, 3, 5)),
+      distrito = as.integer(stringr::str_sub(cusec, 6, 7)),
+      seccion  = as.integer(stringr::str_sub(cusec, 8, 10)),
+      provmun  = prov * 1000L + mun,
+      .before  = geometry
     )
-  
-  seleccion <- rep(
-    TRUE,
-    nrow(indice)
-  )
-  
-  if (
-    !is.null(filtros$provincias) &&
-    length(filtros$provincias) > 0
-  ) {
-    
-    seleccion <- (
-      seleccion &
-        indice$prov %in%
-        as.integer(filtros$provincias)
-    )
-  }
-  
-  if (
-    !is.null(filtros$municipios) &&
-    length(filtros$municipios) > 0
-  ) {
-    
-    seleccion <- (
-      seleccion &
-        indice$provmun %in%
-        as.integer(filtros$municipios)
-    )
-  }
-  
-  if (
-    !is.null(filtros$distritos) &&
-    length(filtros$distritos) > 0
-  ) {
-    
-    seleccion <- (
-      seleccion &
-        indice$distrito %in%
-        as.integer(filtros$distritos)
-    )
-  }
-  
-  if (
-    !is.null(filtros$secciones) &&
-    length(filtros$secciones) > 0
-  ) {
-    
-    seleccion <- (
-      seleccion &
-        indice$seccion %in%
-        as.integer(filtros$secciones)
-    )
-  }
-  
-  indice <- indice[
-    seleccion,
-    ,
-    drop = FALSE
-  ]
-  
-  features <- features[
-    indice$posicion
-  ]
-  
-  if (length(features) == 0) {
-    
-    stop(
-      "Los filtros territoriales no dejan ninguna feature.",
-      call. = FALSE
-    )
-  }
-  
-  features <- purrr::map2(
-    features,
-    indice$cusec,
-    .asignar_geo_id_feature
-  )
-  
-  indice$posicion <- NULL
-  rownames(indice) <- NULL
   
   message(
-    "Features después del filtro territorial: ",
-    format(
-      length(features),
-      big.mark = ".",
-      scientific = FALSE
-    )
+    "Secciones leídas: ",
+    format(nrow(geo), big.mark = ".", scientific = FALSE),
+    ". Tiempo: ", round(tiempo[["elapsed"]], 2), " segundos."
   )
   
-  list(
-    geojson = list(
-      type = "FeatureCollection",
-      features = features
-    ),
-    indice = indice
-  )
+  geo
 }
 
 
+# Datos del mapa ----
+
+# Devuelve un objeto sf (geometría + resultados + ganador).
+# Ya no hace falta el atributo "geojson" ni .construir_geojson().
 .obtener_datos_mapa <- function(
     ruta_resultados,
     ruta_geo,
     ruta_relmunicipios,
     filtros,
-    partidos = NULL
+    partidos = NULL,
+    anho_geo = NULL
 ) {
   
   if (is.null(filtros$eleccion)) {
-    
-    stop(
-      "Es necesario indicar 'filtros$eleccion'.",
-      call. = FALSE
-    )
+    stop("Es necesario indicar 'filtros$eleccion'.", call. = FALSE)
   }
   
-  if (
-    is.null(filtros$provincias) ||
-    length(filtros$provincias) == 0
-  ) {
-    
+  if (length(filtros$provincias) == 0) {
     stop(
-      paste0(
-        "Es necesario indicar al menos una provincia en ",
-        "'filtros$provincias'."
-      ),
+      "Es necesario indicar al menos una provincia en 'filtros$provincias'.",
       call. = FALSE
     )
   }
   
   # Relación de municipios ----
   
-  relmun <- openxlsx::read.xlsx(
-    ruta_relmunicipios
-  ) |>
-    dplyr::mutate(
-      COD = as.integer(COD)
-    )
+  relmun <- openxlsx::read.xlsx(ruta_relmunicipios) |>
+    dplyr::mutate(COD = as.integer(COD))
   
   # Resultados electorales ----
   
-  ds_res <- arrow::open_dataset(
-    ruta_resultados
-  ) |>
-    dplyr::filter(
-      fecha_eleccion == filtros$eleccion
-    )
+  ds_res <- arrow::open_dataset(ruta_resultados) |>
+    dplyr::filter(fecha_eleccion == filtros$eleccion) |>
+    dplyr::filter(prov %in% filtros$provincias)
   
-  if (
-    !is.null(filtros$provincias) &&
-    length(filtros$provincias) > 0
-  ) {
-    
-    ds_res <- ds_res |>
-      dplyr::filter(
-        prov %in% filtros$provincias
-      )
+  if (length(filtros$municipios) > 0) {
+    ds_res <- ds_res |> dplyr::filter(provmun %in% filtros$municipios)
   }
   
-  if (
-    !is.null(filtros$municipios) &&
-    length(filtros$municipios) > 0
-  ) {
-    
-    ds_res <- ds_res |>
-      dplyr::filter(
-        provmun %in% filtros$municipios
-      )
+  if (length(filtros$distritos) > 0) {
+    ds_res <- ds_res |> dplyr::filter(distrito %in% filtros$distritos)
   }
   
-  if (
-    !is.null(filtros$distritos) &&
-    length(filtros$distritos) > 0
-  ) {
-    
-    ds_res <- ds_res |>
-      dplyr::filter(
-        distrito %in% filtros$distritos
-      )
-  }
-  
-  if (
-    !is.null(filtros$secciones) &&
-    length(filtros$secciones) > 0
-  ) {
-    
-    ds_res <- ds_res |>
-      dplyr::filter(
-        seccion %in% filtros$secciones
-      )
+  if (length(filtros$secciones) > 0) {
+    ds_res <- ds_res |> dplyr::filter(seccion %in% filtros$secciones)
   }
   
   variables_generales <- c(
@@ -521,243 +205,243 @@
     "votos_nulos"
   )
   
-  if (
-    !is.null(partidos) &&
-    length(partidos) > 0
-  ) {
-    
-    variables_votos_partidos <- paste0(
-      "votos_",
-      partidos
+  if (length(partidos) > 0) {
+    variables_partidos <- c(
+      paste0("votos_", partidos),
+      paste0("votos_", partidos, "_pct_validos")
     )
-    
-    variables_porcentaje_partidos <- paste0(
-      "votos_",
-      partidos,
-      "_pct_validos"
-    )
-    
   } else {
-    
-    variables_votos_partidos <- character(0)
-    variables_porcentaje_partidos <- character(0)
+    variables_partidos <- character(0)
   }
   
-  columnas_solicitadas <- unique(
-    c(
-      variables_generales,
-      variables_votos_partidos,
-      variables_porcentaje_partidos
-    )
-  )
-  
   columnas_resultados <- intersect(
-    columnas_solicitadas,
+    unique(c(variables_generales, variables_partidos)),
     names(ds_res)
   )
   
-  if (!"seccion_id" %in% columnas_resultados) {
-    
-    stop(
-      "No existe la columna 'seccion_id' en los resultados.",
-      call. = FALSE
-    )
-  }
-  
-  if (!"provmun" %in% columnas_resultados) {
-    
-    stop(
-      "No existe la columna 'provmun' en los resultados.",
-      call. = FALSE
-    )
+  for (obligatoria in c("seccion_id", "provmun")) {
+    if (!obligatoria %in% columnas_resultados) {
+      stop(
+        "No existe la columna '", obligatoria, "' en los resultados.",
+        call. = FALSE
+      )
+    }
   }
   
   resultados <- ds_res |>
-    dplyr::select(
-      dplyr::all_of(
-        columnas_resultados
-      )
-    ) |>
+    dplyr::select(dplyr::all_of(columnas_resultados)) |>
     dplyr::collect() |>
     dplyr::mutate(
-      cusec = gsub(
-        "-",
-        "",
-        as.character(seccion_id)
-      ),
-      cusec = .normalizar_codigo_geo(
-        cusec,
-        ancho = 10
-      ),
+      cusec   = .normalizar_codigo_geo(gsub("-", "", seccion_id), ancho = 10),
       provmun = as.integer(provmun)
     ) |>
-    dplyr::select(
-      -seccion_id
-    )
+    dplyr::select(-seccion_id)
   
   message(
     "Filas de resultados: ",
-    format(
-      nrow(resultados),
-      big.mark = ".",
-      scientific = FALSE
-    )
+    format(nrow(resultados), big.mark = ".", scientific = FALSE)
   )
   
-  # GeoJSON provincial ----
+  # Geometrías ----
   
-  anho_geo <- as.integer(
-    substr(
-      as.character(filtros$eleccion),
-      1,
-      4
-    )
-  )
+  if (is.null(anho_geo)) {
+    anho_geo <- as.integer(substr(as.character(filtros$eleccion), 1, 4))
+  }
   
-  geojson_completo <- .leer_geojson_provincias(
+  geo <- .leer_geo_secciones(
     ruta_geo = ruta_geo,
     anho = anho_geo,
-    provincias = filtros$provincias
-  )
-  
-  preparacion_geo <- .preparar_geojson(
-    geojson = geojson_completo,
     filtros = filtros
   )
   
-  geojson_filtrado <- preparacion_geo$geojson
-  geo <- preparacion_geo$indice
-  
-  # Join ----
+  # Join (el resultado sigue siendo sf) ----
   
   datos <- geo |>
-    dplyr::left_join(
-      resultados,
-      by = c(
-        "cusec",
-        "provmun"
-      )
-    ) |>
+    dplyr::left_join(resultados, by = c("cusec", "provmun")) |>
     dplyr::left_join(
       relmun |>
-        dplyr::select(
-          dplyr::any_of(
-            c(
-              "COD",
-              "NOMBRE",
-              "DENOMINACION"
-            )
-          )
-        ),
-      by = c(
-        "provmun" = "COD"
-      )
+        dplyr::select(dplyr::any_of(c("COD", "NOMBRE", "DENOMINACION"))),
+      by = c("provmun" = "COD")
     )
   
   # Partido ganador ----
   
-  if (
-    !is.null(partidos) &&
-    length(partidos) > 0
-  ) {
+  if (length(partidos) > 0) {
     
-    variables_partidos <- paste0(
-      "votos_",
-      partidos,
-      "_pct_validos"
-    )
-    
-    variables_partidos <- intersect(
-      variables_partidos,
+    variables_pct <- intersect(
+      paste0("votos_", partidos, "_pct_validos"),
       names(datos)
     )
     
-    if (length(variables_partidos) > 0) {
+    if (length(variables_pct) > 0) {
       
-      matriz <- as.matrix(
-        datos[
-          ,
-          variables_partidos,
-          drop = FALSE
-        ]
-      )
+      # st_drop_geometry: si no, as.matrix() arrastraría la columna geometry
+      matriz <- datos |>
+        sf::st_drop_geometry() |>
+        dplyr::select(dplyr::all_of(variables_pct)) |>
+        as.matrix()
       
       storage.mode(matriz) <- "numeric"
       
-      sin_resultados <- apply(
-        matriz,
-        1,
-        function(x) {
-          all(is.na(x))
-        }
-      )
+      sin_resultados <- rowSums(!is.na(matriz)) == 0
       
-      matriz_calculo <- matriz
-      matriz_calculo[is.na(matriz_calculo)] <- -Inf
+      matriz[is.na(matriz)] <- -Inf
       
-      etiquetas <- sub(
-        "^votos_(.*)_pct_validos$",
-        "\\1",
-        variables_partidos
-      )
+      etiquetas <- sub("^votos_(.*)_pct_validos$", "\\1", variables_pct)
       
-      ganador <- etiquetas[
-        max.col(
-          matriz_calculo,
-          ties.method = "first"
-        )
-      ]
-      
+      ganador <- etiquetas[max.col(matriz, ties.method = "first")]
       ganador[sin_resultados] <- NA_character_
       
       datos$ganador <- ganador
       
     } else {
-      
       datos$ganador <- NA_character_
     }
   }
-  
-  # El GeoJSON se guarda como atributo y se reutiliza en todos los mapas.
-  
-  attr(
-    datos,
-    "geojson"
-  ) <- geojson_filtrado
   
   datos
 }
 
 
-.construir_geojson <- function(datos) {
-  
-  geojson <- attr(
+# Mapa leaflet (sustituye a .mapa_plotly) ----
+
+# - variable numérica  -> gradiente continuo
+#   (si es "votos_<partido>_pct_validos" y hay color del partido en
+#    paletacolpartidos, gradiente blanco -> color del partido)
+# - variable "ganador" (texto) -> colores por categoría
+# paletacolpartidos: vector con nombres, p. ej. c(PP = "#1D84CE", PSOE = "#E30613")
+# Fondo: teselas de OpenStreetMap (leaflet::addTiles()).
+.mapa_leaflet <- function(
     datos,
-    "geojson",
-    exact = TRUE
+    variable,
+    partidos = NULL,
+    titulo = NULL,
+    paletacolpartidos = NULL,
+    opacidad = 0.75
+) {
+  
+  if (!inherits(datos, "sf")) {
+    stop("'datos' debe ser un objeto sf (salida de .obtener_datos_mapa).",
+         call. = FALSE)
+  }
+  
+  if (!variable %in% names(datos)) {
+    stop("No existe la variable '", variable, "' en datos.", call. = FALSE)
+  }
+  
+  valores <- datos[[variable]]
+  
+  if (is.null(titulo)) {
+    titulo <- variable
+  }
+  
+  sin_datos <- "#d9d9d9"
+  
+  # Paleta y etiqueta del valor ----
+  
+  if (is.character(valores) || is.factor(valores)) {
+    
+    valores <- as.character(valores)
+    niveles <- sort(unique(valores[!is.na(valores)]))
+    
+    colores <- if (
+      !is.null(paletacolpartidos) &&
+      all(niveles %in% names(paletacolpartidos))
+    ) {
+      unname(paletacolpartidos[niveles])
+    } else {
+      grDevices::hcl.colors(max(length(niveles), 1), "Dark 3")
+    }
+    
+    pal <- leaflet::colorFactor(
+      palette = colores,
+      domain = niveles,
+      na.color = sin_datos
+    )
+    
+    texto_valor <- ifelse(is.na(valores), "Sin datos", valores)
+    leyenda_valores <- niveles
+    
+  } else {
+    
+    rango <- range(valores, na.rm = TRUE)
+    
+    if (!all(is.finite(rango))) {
+      rango <- c(0, 1)
+    }
+    
+    partido <- sub("^votos_(.*)_pct_validos$", "\\1", variable)
+    
+    color_partido <- if (
+      !is.null(paletacolpartidos) &&
+      partido %in% names(paletacolpartidos)
+    ) {
+      c("#f7f7f7", unname(paletacolpartidos[partido]))
+    } else {
+      "viridis"
+    }
+    
+    pal <- leaflet::colorNumeric(
+      palette = color_partido,
+      domain = rango,
+      na.color = sin_datos
+    )
+    
+    texto_valor <- ifelse(
+      is.na(valores),
+      "Sin datos",
+      paste0(formatC(valores, format = "f", digits = 2), " %")
+    )
+    
+    leyenda_valores <- rango
+  }
+  
+  nombre_mun <- if ("NOMBRE" %in% names(datos)) {
+    datos$NOMBRE
+  } else if ("DENOMINACION" %in% names(datos)) {
+    datos$DENOMINACION
+  } else {
+    rep("", nrow(datos))
+  }
+  
+  etiquetas <- lapply(
+    sprintf(
+      "<b>%s</b><br>Sección: %s<br>%s: %s",
+      htmltools::htmlEscape(ifelse(is.na(nombre_mun), "", nombre_mun)),
+      datos$cusec,
+      htmltools::htmlEscape(titulo),
+      htmltools::htmlEscape(texto_valor)
+    ),
+    htmltools::HTML
   )
   
-  if (is.null(geojson)) {
-    
-    stop(
-      paste0(
-        "datos no contiene el atributo 'geojson'. ",
-        "Debe generarse con .obtener_datos_mapa()."
-      ),
-      call. = FALSE
-    )
-  }
+  # Mapa ----
   
-  if (
-    is.null(geojson$features) ||
-    length(geojson$features) == 0
-  ) {
-    
-    stop(
-      "El GeoJSON no contiene features.",
-      call. = FALSE
+  leaflet::leaflet(
+    datos,
+    options = leaflet::leafletOptions(preferCanvas = TRUE)
+  ) |>
+    leaflet::addTiles() |>   # OpenStreetMap
+    leaflet::addPolygons(
+      fillColor = ~pal(valores),
+      fillOpacity = opacidad,
+      color = "#4b5563",
+      weight = 0.5,
+      opacity = 0.8,
+      label = etiquetas,
+      highlightOptions = leaflet::highlightOptions(
+        weight = 2.5,
+        color = "#d97706",
+        fillOpacity = 0.9,
+        bringToFront = TRUE
+      )
+    ) |>
+    leaflet::addLegend(
+      position = "bottomright",
+      pal = pal,
+      values = leyenda_valores,
+      title = titulo,
+      na.label = "Sin datos",
+      opacity = 1
     )
-  }
-  
-  geojson
 }

@@ -1,0 +1,321 @@
+/* ============================================================
+   VARIABLES
+   ============================================================ */
+   
+:root {
+  --color-primary: #526db0;
+  --color-secondary: #f5c201;
+  --color-text: #1f2933;
+  --color-border: #e1e5e9;
+  --color-background: #ffffff;
+  --color-page: #f5f7fa;
+
+  --card-radius: 10px;
+  --control-radius: 10px;
+
+  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.08);
+  --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+/* ============================================================
+   ESTRUCTURA GENERAL
+   ============================================================ */
+html,
+body {
+  background-color: var(--color-page);
+  color: var(--color-text);
+}
+
+.app-header {
+  padding: 16px 24px;
+  margin-bottom: 18px;
+  color: #ffffff;
+  background-color: var(--color-primary);
+  border-radius: 0 0 var(--card-radius) var(--card-radius);
+  box-shadow: var(--shadow-card);
+}
+
+.app-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.app-subtitle {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 15px;
+}
+
+.sidebar-panel,
+.map-panel {
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-card);
+}
+
+.sidebar-panel {
+  padding: 18px;
+}
+
+.map-panel {
+  min-height: 740px;
+  padding: 8px;
+}
+
+/* ============================================================
+   TITULOS Y RESUMEN
+   ============================================================ */
+.sidebar-panel h4 {
+  margin-top: 0;
+  margin-bottom: 14px;
+  color: var(--color-primary);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.sidebar-panel hr {
+  margin: 20px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.summary-box {
+  padding: 12px;
+  margin-bottom: 12px;
+  background-color: rgba(82, 109, 176, 0.08);
+  border-left: 4px solid var(--color-primary);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.summary-title {
+  margin-bottom: 6px;
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* ============================================================
+   ETIQUETAS DE LOS SELECTORES
+   ============================================================ */
+.sidebar-panel .control-label {
+  margin-bottom: 5px;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sidebar-panel .form-group,
+.sidebar-panel .shiny-input-container {
+  width: 100%;
+}
+
+/* ============================================================
+   PICKERINPUT: BOTON PRINCIPAL
+   ============================================================ */
+.sidebar-panel .bootstrap-select {
+  width: 100% !important;
+}
+
+.sidebar-panel .bootstrap-select > .dropdown-toggle {
+  position: relative;
+  display: flex !important;
+  align-items: center;
+
+  width: 100% !important;
+  min-height: 44px;
+  padding: 9px 42px 9px 14px !important;
+
+  color: rgba(255, 255, 255, 0.92) !important;
+  background-color: var(--color-primary) !important;
+
+  font-size: 14px;
+  font-weight: 500;
+
+  border: none !important;
+  border-bottom: 3px solid transparent !important;
+  border-radius: var(--control-radius) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.sidebar-panel
+  .bootstrap-select
+  > .dropdown-toggle
+  .filter-option-inner-inner {
+  overflow: hidden;
+  color: inherit !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-panel .bootstrap-select > .dropdown-toggle::after {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  color: #ffffff;
+  border-top-color: currentColor !important;
+}
+
+.sidebar-panel .bootstrap-select > .dropdown-toggle:hover,
+.sidebar-panel .bootstrap-select.show > .dropdown-toggle,
+.sidebar-panel .bootstrap-select > .dropdown-toggle:focus,
+.sidebar-panel .bootstrap-select > .dropdown-toggle:active {
+  color: var(--color-secondary) !important;
+  background-color: var(--color-primary) !important;
+  border-bottom-color: var(--color-secondary) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* ============================================================
+   PICKERINPUT: MENU DESPLEGABLE
+   ============================================================ */
+.sidebar-panel .bootstrap-select .dropdown-menu {
+  min-width: 100% !important;
+  padding: 7px;
+  margin-top: 5px;
+
+  background-color: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  box-shadow: var(--shadow-dropdown);
+}
+
+.sidebar-panel .bootstrap-select .dropdown-menu.inner {
+  padding: 0;
+  margin: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.sidebar-panel .bootstrap-select .dropdown-menu li a.dropdown-item {
+  min-height: 36px;
+  padding: 8px 10px;
+
+  color: var(--color-text);
+  background-color: transparent;
+
+  font-size: 13px;
+  border-radius: 7px;
+}
+
+.sidebar-panel .bootstrap-select .dropdown-menu li a.dropdown-item:hover,
+.sidebar-panel .bootstrap-select .dropdown-menu li a.dropdown-item:focus {
+  color: var(--color-primary);
+  background-color: rgba(82, 109, 176, 0.10);
+  outline: none;
+}
+
+.sidebar-panel .bootstrap-select .dropdown-menu li.selected a.dropdown-item {
+  color: var(--color-primary);
+  background-color: rgba(82, 109, 176, 0.16);
+  font-weight: 600;
+}
+
+/* ============================================================
+   PICKERINPUT: BUSCADOR
+   ============================================================ */
+.sidebar-panel .bootstrap-select .bs-searchbox {
+  padding: 3px 3px 7px;
+}
+
+.sidebar-panel .bootstrap-select .bs-searchbox .form-control {
+  min-height: 38px;
+  padding: 8px 10px;
+
+  color: var(--color-text);
+  background-color: #ffffff;
+
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.sidebar-panel .bootstrap-select .bs-searchbox .form-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(82, 109, 176, 0.15);
+  outline: none;
+}
+
+
+/* ============================================================
+   BOTON ACTUALIZAR
+   ============================================================ */
+
+.sidebar-panel .btn-primary {
+  width: 100%;
+  min-height: 44px;
+
+  color: #ffffff;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  border-radius: var(--control-radius);
+
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.sidebar-panel .btn-primary:hover,
+.sidebar-panel .btn-primary:focus,
+.sidebar-panel .btn-primary:active {
+  color: var(--color-secondary);
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+
+/* ============================================================
+   ESTADOS DE SHINY
+   ============================================================ */
+
+.shiny-output-error-validation {
+  margin-top: 100px;
+  color: #555555;
+  font-size: 16px;
+  text-align: center;
+}
+
+.recalculating {
+  opacity: 0.55;
+}
+
+.shiny-busy-indicator {
+  position: fixed;
+  top: 15px;
+  right: 20px;
+  z-index: 9999;
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 992px) {
+  .map-panel {
+    margin-top: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: 14px 18px;
+  }
+
+  .app-title {
+    font-size: 21px;
+  }
+
+  .sidebar-panel {
+    padding: 14px;
+  }
+
+  .sidebar-panel .bootstrap-select > .dropdown-toggle {
+    min-height: 42px;
+  }
+}

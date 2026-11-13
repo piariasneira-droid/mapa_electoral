@@ -1,7 +1,7 @@
 # Valores territoriales ----
 FILTROSXDEFECTO <- list(
   provincias = c(28L),
-  municipios = c(28079L),
+  municipios = NULL,
   distritos = NULL,
   secciones = NULL,
   eleccion = 202307L

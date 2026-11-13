@@ -1,0 +1,10 @@
+http_proxy=http://proxy-sa.seg-social.es:8080
+https_proxy=http://proxy-sa.seg-social.es:8080
+HTTP_PROXY=http://proxy-sa.seg-social.es:8080
+HTTPS_PROXY=http://proxy-sa.seg-social.es:8080
+no_proxy=localhost,127.0.0.1
+NO_PROXY=localhost,127.0.0.1
+
+R_LIBS=/apps/works5/librerias
+R_LIBS_USER=/apps/works5/librerias
+R_LIBS_SITE=NULL

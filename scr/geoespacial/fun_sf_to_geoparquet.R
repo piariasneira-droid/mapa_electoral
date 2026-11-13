@@ -828,10 +828,7 @@
     anho,
     output_dir
 ) {
-  
-  message(
-    "  Simplificando geometrías..."
-  )
+  message("  Simplificando geometrías...")
   
   datos <- rmapshaper::ms_simplify(
     datos,
@@ -842,54 +839,28 @@
   datos <- datos |>
     sf::st_make_valid() |>
     sf::st_collection_extract("POLYGON") |>
-    sf::st_cast("MULTIPOLYGON")
+    sf::st_cast("MULTIPOLYGON") |>
+    sf::st_set_crs(4326)
   
-  message(
-    "  Escribiendo GeoParquet..."
-  )
-  
-  geom <- sf::st_geometry(datos)
-  bb <- as.numeric(sf::st_bbox(geom))
-  
-  wkb <- unclass(
-    sf::st_as_binary(geom)
-  )
-  attributes(wkb) <- NULL
-  
-  tabla <- arrow::arrow_table(
-    cusec = as.character(datos$cusec),
-    geometry = arrow::Array$create(
-      wkb,
-      type = arrow::binary()
-    )
-  )
-  
-  tabla$metadata$geo <- sprintf(
-    paste0(
-      '{"version":"1.0.0","primary_column":"geometry",',
-      '"columns":{"geometry":{"encoding":"WKB",',
-      '"geometry_types":["MultiPolygon"],',
-      '"bbox":[%.6f,%.6f,%.6f,%.6f]}}}'
-    ),
-    bb[1],
-    bb[2],
-    bb[3],
-    bb[4]
-  )
+  message("  Escribiendo GeoParquet...")
   
   fichero <- file.path(
     output_dir,
-    paste0(
-      "secciones_",
-      anho,
-      ".parquet"
+    paste0("secciones_", anho, ".parquet")
+  )
+  
+  # Convierte la columna sf a vector geoarrow manteniendo el CRS 4326
+  tabla <- arrow::as_arrow_table(
+    data.frame(
+      cusec = as.character(datos$cusec),
+      geometry = geoarrow::as_geoarrow_vctr(sf::st_geometry(datos))
     )
   )
   
   arrow::write_parquet(
     tabla,
     fichero,
-    compression = "zstd"
+    compression = "snappy"
   )
   
   file.size(fichero) / 1024^2
