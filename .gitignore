@@ -1,0 +1,37 @@
+# Pixi environments
+.pixi/
+!.pixi/config.toml
+.pixi.lock
+
+# Quarto & Knitr
+.quarto/
+**/*.quarto_ipynb
+*_files/
+*_cache/
+*.utf8.md
+*.knit.md
+
+# RStudio & R Workspaces
+.Rproj.user/
+*.RData
+*.Rdata
+*.rda
+.Rhistory
+*.Rprof
+.Rcheck/
+
+# Directorios de datos y resultados
+data/
+interim/
+output/
+documentacion/
+
+# Documentos finalizados y exportaciones
+*.pdf
+*.html
+
+# Imágenes
+*.jpg
+*.jpeg
+*.png
+/.quarto/

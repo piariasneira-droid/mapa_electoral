@@ -1,0 +1,211 @@
+---
+title: "Resultados electorales por sección censal"
+subtitle: "Distrito de Fuencarral-El Pardo (Madrid)"
+lang: es
+format:
+  pdf:
+    papersize: a4
+    geometry:
+      - margin=1.5cm
+    fig-align: center
+    fig-pos: H
+    toc: false
+    colorlinks: false
+execute:
+  echo: false
+  warning: false
+  message: false
+params:
+  eleccion: null
+---
+
+```{r}
+#| label: setup
+
+library(readr)
+library(dplyr)
+library(purrr)
+library(arrow)
+library(stringr)
+library(sf)
+library(ggplot2)
+
+# Raíz del proyecto: se sube desde el directorio actual hasta encontrar
+# elecciones.Rproj (funciona sea cual sea el directorio de ejecución de Quarto)
+raiz <- local({
+  d <- normalizePath(getwd())
+  while (!file.exists(file.path(d, "elecciones.Rproj"))) {
+    padre <- dirname(d)
+    if (padre == d) stop("No se encuentra elecciones.Rproj hacia arriba desde ", getwd())
+    d <- padre
+  }
+  d
+})
+
+source(file.path(raiz, "scr/mesas_fuencarral/fun/lectura_congreso_interim.R")) # .filtrar_territorio
+source(file.path(raiz, "scr/mapa_secciones/fun/lectura_geo.R"))
+source(file.path(raiz, "scr/mapa_secciones/fun/mapas.R"))
+```
+
+```{r}
+#| label: config
+
+# Geometría de secciones censales (INE) y resultados por sección
+ruta_geo <- file.path(raiz, "data/geo/secciones/SECC_CE_20230101.shp")
+ruta_resultados <- file.path(
+  raiz, "output/generales/secciones_fuencarral/resultados_seccion.parquet"
+)
+
+# Elección (AAAAMM). Por defecto, la última disponible.
+# Se puede cambiar con: quarto render ... -P eleccion:202307
+eleccion <- params$eleccion
+
+# Código de sección sobre cada polígono
+etiquetas <- TRUE
+
+# Filtros territoriales (NULL = sin filtrar)
+filprov <- "28"
+filmun  <- "079"
+fildis  <- "08"
+filsec  <- NULL
+
+# Debe coincidir con partidos_principales de los ETL
+partidos_principales <- c(
+  "PP",
+  "PSOE",
+  "VOX",
+  "IU_PODEMOS_MAS_PAIS_SUMAR",
+  "UPYD_CIUDADANOS",
+  "OTROS"
+)
+```
+
+```{r}
+#| label: datos
+
+secciones_geo <- .leer_secciones_geo(
+  ruta_geo,
+  cod_prov = filprov,
+  cod_mun = filmun,
+  cod_dis = fildis,
+  cod_sec = filsec
+)
+
+resultados_seccion <- read_parquet(ruta_resultados) |>
+  .filtrar_territorio(
+    cod_prov = filprov,
+    cod_mun = filmun,
+    cod_dis = fildis,
+    cod_sec = filsec
+  )
+
+res_mapa <- .preparar_resultados_mapa(
+  resultados_seccion,
+  partidos = partidos_principales,
+  eleccion = eleccion
+)
+
+mapa_datos <- .unir_mapa_resultados(secciones_geo, res_mapa)
+
+# Resumen para el texto
+eleccion_usada <- unique(res_mapa$fecha_eleccion)
+eleccion_txt <- str_c(
+  str_sub(eleccion_usada, 5, 6), "/", str_sub(eleccion_usada, 1, 4)
+)
+n_geo <- nrow(secciones_geo)
+n_con_resultado <- sum(secciones_geo$cusec %in% res_mapa$cusec)
+n_sin_geometria <- sum(!res_mapa$cusec %in% secciones_geo$cusec)
+
+# Atajo para los mapas por partido
+mapa_partido <- function(partido, nombre = partido) {
+  .mapa_estatico(
+    mapa_datos,
+    variable = str_c("votos_", partido, "_pct_validos"),
+    titulo = str_c(nombre, " (% sobre votos válidos)"),
+    leyenda = "% sobre votos válidos",
+    etiquetas = etiquetas
+  )
+}
+```
+
+Elecciones generales de **`r eleccion_txt`**. Secciones censales con resultado: **`r n_con_resultado`** de `r n_geo` en la cartografía (INE, 1 de enero de 2023)`r if (n_sin_geometria > 0) str_c("; ", n_sin_geometria, " secciones con resultados no existen en la cartografía") else ""`.
+
+```{r}
+#| label: mapa-ganador
+#| fig-width: 7
+#| fig-height: 8.2
+
+.mapa_estatico(
+  mapa_datos,
+  variable = "ganador",
+  titulo = "Partido ganador por sección",
+  leyenda = "Partido ganador",
+  etiquetas = etiquetas
+)
+```
+
+{{< pagebreak >}}
+
+```{r}
+#| label: mapa-participacion
+#| fig-width: 7
+#| fig-height: 9.6
+
+.mapa_estatico(
+  mapa_datos,
+  variable = "participacion_pct",
+  titulo = "Participación por sección",
+  leyenda = "Participación (%)",
+  etiquetas = etiquetas
+)
+```
+
+{{< pagebreak >}}
+
+```{r}
+#| label: mapa-pp
+#| fig-width: 7
+#| fig-height: 9.6
+
+mapa_partido("PP")
+```
+
+{{< pagebreak >}}
+
+```{r}
+#| label: mapa-psoe
+#| fig-width: 7
+#| fig-height: 9.6
+
+mapa_partido("PSOE")
+```
+
+{{< pagebreak >}}
+
+```{r}
+#| label: mapa-vox
+#| fig-width: 7
+#| fig-height: 9.6
+
+mapa_partido("VOX")
+```
+
+{{< pagebreak >}}
+
+```{r}
+#| label: mapa-iu
+#| fig-width: 7
+#| fig-height: 9.6
+
+mapa_partido("IU_PODEMOS_MAS_PAIS_SUMAR", "IU-Podemos-Más País-Sumar")
+```
+
+{{< pagebreak >}}
+
+```{r}
+#| label: mapa-cs
+#| fig-width: 7
+#| fig-height: 9.6
+
+mapa_partido("UPYD_CIUDADANOS", "UPyD-Ciudadanos")
+```

@@ -1,0 +1,38 @@
+project:
+  type: default
+  render:
+    - quarto/informes_mesas_fuencarral/informe_mesa.qmd
+    - quarto/informes_secciones_fuencarral/mapa_secciones.qmd
+    - quarto/informes_secciones_fuencarral/mapa_secciones_pdf.qmd
+  output-dir: output/informes_mesa
+
+execute-dir: project
+
+lang: es
+
+execute:
+  echo: false
+  warning: false
+  message: false
+  freeze: false
+
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: false
+    page-layout: article
+    theme: cosmo
+    smooth-scroll: true
+    anchor-sections: true
+    code-fold: false
+    link-external-newwindow: true
+    fig-responsive: true
+
+knitr:
+  opts_chunk:
+    dpi: 150
+    fig-align: center
+    out-width: "100%"

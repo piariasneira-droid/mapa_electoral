@@ -1,0 +1,573 @@
+---
+title: "Resultados electorales por sección censal"
+subtitle: "Comunidad de Madrid"
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-title: "Mapas"
+    toc-location: left
+    page-layout: full
+execute:
+  echo: false
+  warning: false
+  message: false
+  cache: false
+params:
+  eleccion: null
+  anho_geo: 2023
+  provincia: "28"
+  municipio: null
+  distrito: null
+  seccion: null
+  estilo: "open-street-map"
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(dplyr)
+library(purrr)
+library(arrow)
+library(stringr)
+library(jsonlite)
+library(plotly)
+library(htmlwidgets)
+
+
+# Localización de la raíz del proyecto ----
+#
+# Se sube desde el directorio de ejecución hasta encontrar
+# elecciones.Rproj. Esto permite renderizar el informe desde
+# cualquier directorio del proyecto.
+
+raiz <- local({
+
+  d <- normalizePath(
+    getwd(),
+    mustWork = TRUE
+  )
+
+  while (
+    !file.exists(
+      file.path(
+        d,
+        "elecciones.Rproj"
+      )
+    )
+  ) {
+
+    padre <- dirname(d)
+
+    if (padre == d) {
+      stop(
+        "No se encuentra elecciones.Rproj hacia arriba desde: ",
+        getwd(),
+        call. = FALSE
+      )
+    }
+
+    d <- padre
+  }
+
+  d
+})
+
+
+# Funciones del proyecto ----
+
+source(
+  file.path(
+    raiz,
+    "scr",
+    "mesas_fuencarral",
+    "fun",
+    "lectura_congreso_interim.R"
+  )
+)
+
+source(
+  file.path(
+    raiz,
+    "scr",
+    "mapa_secciones",
+    "fun",
+    "lectura_geo.R"
+  )
+)
+
+source(
+  file.path(
+    raiz,
+    "scr",
+    "mapa_secciones",
+    "fun",
+    "mapas.R"
+  )
+)
+```
+
+```{r}
+#| label: config
+#| include: false
+
+# Año de la cartografía de secciones censales ----
+
+anho_geo <- params$anho_geo
+
+
+# Parquet geográfico ----
+
+ruta_geo <- file.path(
+  raiz,
+  "output",
+  "geo",
+  "secciones",
+  paste0(
+    "SECC_CE_",
+    anho_geo,
+    "0101.parquet"
+  )
+)
+
+
+# Resultados agregados por sección ----
+
+ruta_resultados <- file.path(
+  raiz,
+  "output",
+  "generales",
+  "secciones_madrid",
+  "resultados_seccion.parquet"
+)
+
+
+# Elección ----
+#
+# Formato AAAAMM.
+# NULL utiliza la última elección disponible.
+
+eleccion <- params$eleccion
+
+
+# Mapa base ----
+#
+# Opciones habituales:
+#
+#   "open-street-map"
+#   "carto-positron"
+#   "carto-darkmatter"
+#   "white-bg"
+#
+# open-street-map y carto requieren conexión al abrir el HTML.
+# white-bg funciona sin descargar teselas externas.
+
+estilo <- params$estilo
+
+
+# Filtros territoriales ----
+
+filprov <- params$provincia
+filmun  <- params$municipio
+fildis  <- params$distrito
+filsec  <- params$seccion
+
+
+# Agrupaciones electorales ----
+#
+# Debe coincidir con partidos_principales de los ETL.
+
+partidos_principales <- c(
+  "PP",
+  "PSOE",
+  "VOX",
+  "IU_PODEMOS_MAS_PAIS_SUMAR",
+  "UPYD_CIUDADANOS",
+  "OTROS"
+)
+
+
+# Comprobación de entradas ----
+
+if (!file.exists(ruta_geo)) {
+  stop(
+    "No existe el Parquet geográfico: ",
+    normalizePath(
+      ruta_geo,
+      mustWork = FALSE
+    ),
+    call. = FALSE
+  )
+}
+
+if (!file.exists(ruta_resultados)) {
+  stop(
+    "No existe el Parquet de resultados: ",
+    normalizePath(
+      ruta_resultados,
+      mustWork = FALSE
+    ),
+    call. = FALSE
+  )
+}
+```
+
+```{r}
+#| label: datos
+#| include: false
+
+# Secciones censales ----
+#
+# .leer_secciones_geo() aplica los filtros territoriales mediante
+# Arrow antes de cargar las features en memoria.
+
+tiempo_geo <- system.time({
+
+  secciones_geo <- .leer_secciones_geo(
+    ruta = ruta_geo,
+    cod_prov = filprov,
+    cod_mun = filmun,
+    cod_dis = fildis,
+    cod_sec = filsec
+  )
+
+})
+
+
+# Resultados electorales ----
+
+resultados_seccion <- arrow::read_parquet(
+  ruta_resultados
+) |>
+  .filtrar_territorio(
+    cod_prov = filprov,
+    cod_mun = filmun,
+    cod_dis = fildis,
+    cod_sec = filsec
+  )
+
+
+# Preparación de resultados ----
+
+res_mapa <- .preparar_resultados_mapa(
+  resultados_seccion,
+  partidos = partidos_principales,
+  eleccion = eleccion
+)
+
+
+# Unión de atributos y resultados ----
+
+mapa_datos <- .unir_mapa_resultados(
+  secciones_geo,
+  res_mapa
+)
+
+
+# Validación de variables ----
+
+variables_necesarias <- c(
+  "participacion_pct",
+  "ganador",
+  "votos_PP_pct_validos",
+  "votos_PSOE_pct_validos",
+  "votos_VOX_pct_validos",
+  "votos_IU_PODEMOS_MAS_PAIS_SUMAR_pct_validos",
+  "votos_UPYD_CIUDADANOS_pct_validos"
+)
+
+variables_faltantes <- setdiff(
+  variables_necesarias,
+  names(mapa_datos$datos)
+)
+
+if (length(variables_faltantes) > 0) {
+  stop(
+    "Faltan variables necesarias para los mapas: ",
+    paste(
+      variables_faltantes,
+      collapse = ", "
+    ),
+    call. = FALSE
+  )
+}
+
+
+# Comprobaciones territoriales ----
+
+secciones_sin_resultado <- mapa_datos$datos |>
+  dplyr::filter(
+    is.na(fecha_eleccion)
+  ) |>
+  dplyr::select(
+    cusec
+  )
+
+resultados_sin_geometria <- res_mapa |>
+  dplyr::filter(
+    !cusec %in% secciones_geo$datos$cusec
+  ) |>
+  dplyr::select(
+    dplyr::any_of(
+      c(
+        "cusec",
+        "seccion_id",
+        "censo_escrutinio"
+      )
+    )
+  )
+
+
+# Resumen para el texto ----
+
+eleccion_usada <- unique(
+  res_mapa$fecha_eleccion
+)
+
+if (length(eleccion_usada) != 1) {
+  stop(
+    "No se ha podido determinar una única elección para el informe.",
+    call. = FALSE
+  )
+}
+
+eleccion_usada <- as.character(
+  eleccion_usada
+)
+
+eleccion_txt <- stringr::str_c(
+  stringr::str_sub(
+    eleccion_usada,
+    5,
+    6
+  ),
+  "/",
+  stringr::str_sub(
+    eleccion_usada,
+    1,
+    4
+  )
+)
+
+n_geo <- nrow(
+  secciones_geo$datos
+)
+
+n_con_resultado <- sum(
+  secciones_geo$datos$cusec %in%
+    res_mapa$cusec
+)
+
+n_sin_resultado <- nrow(
+  secciones_sin_resultado
+)
+
+n_sin_geometria <- nrow(
+  resultados_sin_geometria
+)
+
+tiempo_geo_segundos <- round(
+  tiempo_geo[["elapsed"]],
+  2
+)
+```
+
+```{r}
+#| label: funciones-informe
+#| include: false
+
+# Etiquetas más legibles para los mapas ----
+
+etiquetas_partidos <- c(
+  PP = "PP",
+  PSOE = "PSOE",
+  VOX = "VOX",
+  IU_PODEMOS_MAS_PAIS_SUMAR = "IU / Podemos / Más País / Sumar",
+  UPYD_CIUDADANOS = "UPyD / Ciudadanos",
+  OTROS = "Otros"
+)
+
+
+# Generador de mapas por partido ----
+
+mapa_partido <- function(
+    partido,
+    titulo = NULL) {
+
+  variable <- stringr::str_c(
+    "votos_",
+    partido,
+    "_pct_validos"
+  )
+
+  if (is.null(titulo)) {
+    titulo <- etiquetas_partidos[[partido]]
+  }
+
+  .mapa_plotly(
+    mapa_datos,
+    variable = variable,
+    partidos = partidos_principales,
+    titulo = stringr::str_c(
+      titulo,
+      " (% sobre votos válidos)"
+    ),
+    estilo = estilo
+  )
+}
+```
+
+Elecciones generales de **`r eleccion_txt`**.
+
+La cartografía contiene **`r n_geo` secciones censales** para el territorio seleccionado. Hay resultados electorales asociados a **`r n_con_resultado` secciones**.
+
+`r if (n_sin_resultado > 0) stringr::str_c("Hay **", n_sin_resultado, " secciones geográficas sin resultados** para la elección seleccionada.") else ""`
+
+`r if (n_sin_geometria > 0) stringr::str_c("Hay **", n_sin_geometria, " resultados sin geometría asociada** en la cartografía de ", anho_geo, ".") else ""`
+
+La cartografía se ha cargado desde el Parquet geográfico en **`r tiempo_geo_segundos` segundos**.
+
+## Partido ganador
+
+```{r}
+#| label: mapa-ganador
+#| fig-width: 12
+#| fig-height: 8
+
+.mapa_plotly(
+  mapa_datos,
+  variable = "ganador",
+  partidos = partidos_principales,
+  titulo = "Partido ganador por sección",
+  estilo = estilo
+)
+```
+
+## Participación
+
+```{r}
+#| label: mapa-participacion
+#| fig-width: 12
+#| fig-height: 8
+
+.mapa_plotly(
+  mapa_datos,
+  variable = "participacion_pct",
+  partidos = partidos_principales,
+  titulo = "Participación (%)",
+  estilo = estilo
+)
+```
+
+## Voto por partido
+
+Los porcentajes se calculan sobre el total de votos válidos de cada sección censal.
+
+::: {.panel-tabset}
+
+### PP
+
+```{r}
+#| label: mapa-pp
+#| fig-width: 12
+#| fig-height: 8
+
+mapa_partido(
+  "PP"
+)
+```
+
+### PSOE
+
+```{r}
+#| label: mapa-psoe
+#| fig-width: 12
+#| fig-height: 8
+
+mapa_partido(
+  "PSOE"
+)
+```
+
+### VOX
+
+```{r}
+#| label: mapa-vox
+#| fig-width: 12
+#| fig-height: 8
+
+mapa_partido(
+  "VOX"
+)
+```
+
+### IU, Podemos, Más País y Sumar
+
+```{r}
+#| label: mapa-iu-podemos-sumar
+#| fig-width: 12
+#| fig-height: 8
+
+mapa_partido(
+  "IU_PODEMOS_MAS_PAIS_SUMAR"
+)
+```
+
+### UPyD y Ciudadanos
+
+```{r}
+#| label: mapa-upyd-ciudadanos
+#| fig-width: 12
+#| fig-height: 8
+
+mapa_partido(
+  "UPYD_CIUDADANOS"
+)
+```
+
+:::
+
+## Incidencias de correspondencia
+
+```{r}
+#| label: incidencias
+#| results: asis
+
+if (
+  n_sin_resultado == 0 &&
+  n_sin_geometria == 0
+) {
+
+  cat(
+    "No se han detectado incidencias entre la cartografía ",
+    "y los resultados electorales."
+  )
+
+} else {
+
+  if (n_sin_resultado > 0) {
+
+    cat(
+      "### Secciones geográficas sin resultado\n\n"
+    )
+
+    print(
+      secciones_sin_resultado
+    )
+
+    cat("\n\n")
+  }
+
+  if (n_sin_geometria > 0) {
+
+    cat(
+      "### Resultados sin geometría\n\n"
+    )
+
+    print(
+      resultados_sin_geometria
+    )
+  }
+}
+```

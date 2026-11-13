@@ -1,0 +1,319 @@
+% Options for packages loaded elsewhere
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+%
+\documentclass[
+  spanish,
+  10pt,
+  a4paper,
+  DIV=11,
+  numbers=noendperiod]{scrartcl}
+\usepackage{xcolor}
+\usepackage[top=18mm,bottom=18mm,left=18mm,right=18mm]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+% Make \paragraph and \subparagraph free-standing
+\makeatletter
+\ifx\paragraph\undefined\else
+  \let\oldparagraph\paragraph
+  \renewcommand{\paragraph}{
+    \@ifstar
+      \xxxParagraphStar
+      \xxxParagraphNoStar
+  }
+  \newcommand{\xxxParagraphStar}[1]{\oldparagraph*{#1}\mbox{}}
+  \newcommand{\xxxParagraphNoStar}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+  \let\oldsubparagraph\subparagraph
+  \renewcommand{\subparagraph}{
+    \@ifstar
+      \xxxSubParagraphStar
+      \xxxSubParagraphNoStar
+  }
+  \newcommand{\xxxSubParagraphStar}[1]{\oldsubparagraph*{#1}\mbox{}}
+  \newcommand{\xxxSubParagraphNoStar}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+\makeatother
+
+
+\usepackage{longtable,booktabs,array}
+\newcounter{none} % for unnumbered tables
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+
+
+
+\ifLuaTeX
+\usepackage[bidi=basic,shorthands=off]{babel}
+\else
+\usepackage[bidi=default,shorthands=off]{babel}
+\fi
+\ifLuaTeX
+  \usepackage{selnolig} % disable illegal ligatures
+\fi
+
+
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+
+
+ 
+
+
+\KOMAoption{captions}{tableheading}
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\AtBeginDocument{%
+\ifdefined\contentsname
+  \renewcommand*\contentsname{Tabla de contenidos}
+\else
+  \newcommand\contentsname{Tabla de contenidos}
+\fi
+\ifdefined\listfigurename
+  \renewcommand*\listfigurename{Listado de Figuras}
+\else
+  \newcommand\listfigurename{Listado de Figuras}
+\fi
+\ifdefined\listtablename
+  \renewcommand*\listtablename{Listado de Tablas}
+\else
+  \newcommand\listtablename{Listado de Tablas}
+\fi
+\ifdefined\figurename
+  \renewcommand*\figurename{Figura}
+\else
+  \newcommand\figurename{Figura}
+\fi
+\ifdefined\tablename
+  \renewcommand*\tablename{Tabla}
+\else
+  \newcommand\tablename{Tabla}
+\fi
+}
+\@ifpackageloaded{float}{}{\usepackage{float}}
+\floatstyle{ruled}
+\@ifundefined{c@chapter}{\newfloat{codelisting}{h}{lop}}{\newfloat{codelisting}{h}{lop}[chapter]}
+\floatname{codelisting}{Listado}
+\newcommand*\listoflistings{\listof{codelisting}{Listado de Listados}}
+\makeatother
+\makeatletter
+\makeatother
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\@ifpackageloaded{subcaption}{}{\usepackage{subcaption}}
+\makeatother
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Informe histórico de mesa electoral},
+  pdfauthor={Análisis electoral de Fuencarral-El Pardo},
+  pdflang={es},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+
+\title{Informe histórico de mesa electoral}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\large #1 \par}}{}{}
+}
+\makeatother
+\subtitle{Elecciones generales al Congreso de los Diputados}
+\author{Análisis electoral de Fuencarral-El Pardo}
+\date{30 de octubre de 2026}
+\begin{document}
+\maketitle
+
+\renewcommand*\contentsname{Tabla de contenidos}
+{
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
+
+\textbf{Mesa analizada:} 28-079-08-056-A \n**Ámbito:** Fuencarral-El
+Pardo \n**Periodo disponible:** 03/1996 a 07/2023 \n**Número de
+convocatorias:** 10
+
+\section{Lectura rápida}\label{lectura-ruxe1pida}
+
+En la convocatoria de \textbf{07/2023}, la mesa registró \textbf{504
+electores}, una participación del \textbf{78,2 \%} y una abstención del
+\textbf{21,8 \%}. La fuerza más votada fue \textbf{PP}, con \textbf{217
+votos}. La participación disminuyó 5,6 puntos respecto de la
+convocatoria anterior.
+
+\section{Evolución del censo y la
+participación}\label{evoluciuxf3n-del-censo-y-la-participaciuxf3n}
+
+La comparación histórica debe interpretarse con cautela. Aunque el
+código de mesa sea el mismo, las secciones electorales pueden dividirse,
+fusionarse o modificar sus límites. Por ello, un cambio brusco de censo
+puede indicar una alteración de la composición territorial de la mesa y
+no únicamente un cambio demográfico.
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=1\linewidth,height=\textheight,keepaspectratio]{informe_mesa_files/figure-pdf/grafico-censo-1.pdf}
+
+}
+
+\caption{Evolución del censo electoral de la mesa.}
+
+\end{figure}%
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=1\linewidth,height=\textheight,keepaspectratio]{informe_mesa_files/figure-pdf/grafico-participacion-1.pdf}
+
+}
+
+\caption{Participación y abstención sobre el censo electoral.}
+
+\end{figure}%
+
+\section{Evolución del voto}\label{evoluciuxf3n-del-voto}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=1\linewidth,height=\textheight,keepaspectratio]{informe_mesa_files/figure-pdf/grafico-votos-1.pdf}
+
+}
+
+\caption{Número de votos por familia política y convocatoria.}
+
+\end{figure}%
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=1\linewidth,height=\textheight,keepaspectratio]{informe_mesa_files/figure-pdf/grafico-porcentajes-1.pdf}
+
+}
+
+\caption{Porcentaje de cada familia sobre el total de votos a
+candidaturas.}
+
+\end{figure}%
+
+\section{Última elección}\label{uxfaltima-elecciuxf3n}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=1\linewidth,height=\textheight,keepaspectratio]{informe_mesa_files/figure-pdf/semitarta-1.pdf}
+
+}
+
+\caption{Distribución del voto a candidaturas en la última elección
+disponible.}
+
+\end{figure}%
+
+\begin{longtable}[]{@{}lrr@{}}
+\caption{Resultados por familias políticas en 07/2023}\tabularnewline
+\toprule\noalign{}
+Fuerza & Votos & Porcentaje \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Fuerza & Votos & Porcentaje \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+PP & 217 & 55,2\% \\
+PSOE & 81 & 20,6\% \\
+VOX & 49 & 12,5\% \\
+IU / Podemos / Más País / Sumar & 45 & 11,5\% \\
+Otros & 1 & 0,3\% \\
+UPyD / Ciudadanos & 0 & 0,0\% \\
+\end{longtable}
+
+\section{Notas metodológicas}\label{notas-metodoluxf3gicas}
+
+\begin{itemize}
+\tightlist
+\item
+  Los porcentajes de las fuerzas políticas se calculan sobre los
+  \textbf{votos a candidaturas}, sin incluir votos en blanco ni votos
+  nulos.
+\item
+  \texttt{IU\_PODEMOS\_MAS\_PAIS\_SUMAR} agrupa las candidaturas
+  identificadas como IU, Podemos, Más País, Más Madrid y Sumar.
+\item
+  \texttt{UPYD\_CIUDADANOS} agrupa las candidaturas identificadas como
+  UPyD y Ciudadanos.
+\item
+  \texttt{OTROS} incluye el resto de candidaturas, entre ellas PACMA.
+\item
+  La continuidad del identificador no garantiza que la delimitación
+  territorial y la composición del electorado hayan permanecido
+  constantes.
+\end{itemize}
+
+
+
+
+\end{document}

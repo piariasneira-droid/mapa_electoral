@@ -1,0 +1,12 @@
+# Mesa que se utilizará al renderizar el informe.
+# Formato: provincia-municipio-distrito-seccion-mesa
+mesa_id: "28-092-02-019-U"
+
+# Datos generados por el proceso electoral.
+datos_mesas: "output/generales/mesas_madrid/mesas_resultados.parquet"
+
+# Opcional: nombre mostrado en la portada.
+territorio: "Fuencarral-El Pardo"
+
+# Umbral utilizado para advertir de posibles cambios de mesa.
+umbral_cambio_censo_pct: 30
