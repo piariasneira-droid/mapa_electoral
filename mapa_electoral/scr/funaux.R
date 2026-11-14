@@ -104,10 +104,15 @@
   
   message("Leyendo: ", normalizePath(ruta, mustWork = FALSE))
   
-  prov_sel <- sprintf("%02d", as.integer(filtros$provincias))
+  ds <- arrow::open_dataset(ruta)
   
-  ds <- arrow::open_dataset(ruta) |>
-    dplyr::filter(substr(cusec, 1, 2) %in% prov_sel)
+  # Sin provincias (NULL / vacío) = todas las provincias
+  if (length(filtros$provincias) > 0) {
+    prov_sel <- sprintf("%02d", as.integer(filtros$provincias))
+    
+    ds <- ds |>
+      dplyr::filter(substr(cusec, 1, 2) %in% prov_sel)
+  }
   
   if (length(filtros$municipios) > 0) {
     
@@ -143,7 +148,7 @@
         geometry = sf::st_as_sfc(geometry)
       ) |>
       sf::st_as_sf() |>
-      sf::st_transform(4326)       # Leaflet exige WGS84
+      sf::st_transform(4326)       
   })
   
   if (nrow(geo) == 0) {
@@ -171,6 +176,112 @@
 }
 
 
+# Tooltip (hover) ----
+
+# Número con formato español (miles con punto, decimales con coma).
+# Independiente del locale del sistema. NA -> "s/d".
+.formatear_num <- function(x, digits = 0) {
+  texto <- formatC(
+    as.numeric(x),
+    format = "f",
+    digits = digits,
+    big.mark = ".",
+    decimal.mark = ","
+  )
+  ifelse(is.na(x), "s/d", texto)
+}
+
+# Construye el texto HTML del tooltip, una cadena por sección:
+#   <b>Municipio</b>
+#   Sección: 0101001
+#   Ganador: PSOE
+#   Participación: 1.234 (72,3%)
+#   Votos válidos: 1.100
+#   PSOE: 257 (28,3% votos válidos)
+#   PP: 240 (26,4% votos válidos)
+.construir_hover <- function(datos, partidos = NULL) {
+  
+  n <- nrow(datos)
+  col <- function(nombre) {
+    if (nombre %in% names(datos)) datos[[nombre]] else rep(NA_real_, n)
+  }
+  esc <- function(x) htmltools::htmlEscape(ifelse(is.na(x), "", x))
+  
+  # Municipio y sección (igual que antes) ----
+  nombre_mun <- if ("NOMBRE" %in% names(datos)) {
+    datos$NOMBRE
+  } else if ("DENOMINACION" %in% names(datos)) {
+    datos$DENOMINACION
+  } else {
+    rep("", n)
+  }
+  
+  linea_mun <- sprintf(
+    "<b>%s</b><br>Sección: %s",
+    esc(nombre_mun),
+    datos$cusec
+  )
+  
+  # Ganador ----
+  ganador <- if ("ganador" %in% names(datos)) {
+    as.character(datos$ganador)
+  } else {
+    rep(NA_character_, n)
+  }
+  
+  linea_ganador <- paste0(
+    "Ganador: ",
+    ifelse(is.na(ganador), "Sin datos", esc(ganador))
+  )
+  
+  # Participación: votantes (% sobre censo) ----
+  pct_participacion <- col("participacion_pct")
+  
+  linea_participacion <- paste0(
+    "Participación: ",
+    .formatear_num(col("votos_emitidos")),
+    " (",
+    .formatear_num(pct_participacion, 1),
+    "%)"
+  )
+  
+  # Votos válidos ----
+  linea_validos <- paste0(
+    "Votos válidos: ",
+    .formatear_num(col("votos_validos"))
+  )
+  
+  # Partidos seleccionados ----
+  lineas_partidos <- list()
+  
+  for (partido in partidos) {
+    
+    var_votos <- paste0("votos_", partido)
+    var_pct <- paste0("votos_", partido, "_pct_validos")
+    
+    if (!all(c(var_votos, var_pct) %in% names(datos))) next
+    
+    lineas_partidos[[partido]] <- paste0(
+      esc(partido),
+      ": ",
+      .formatear_num(datos[[var_votos]]),
+      " (",
+      .formatear_num(datos[[var_pct]], 1),
+      "% votos válidos)"
+    )
+  }
+  
+  do.call(
+    paste,
+    c(
+      list(linea_mun, linea_ganador, linea_participacion, linea_validos),
+      unname(lineas_partidos),
+      sep = "<br>"
+    )
+  )
+}
+
+
 # Datos del mapa ----
 
 # Devuelve un objeto sf (geometría + resultados + ganador).
@@ -188,13 +299,6 @@
     stop("Es necesario indicar 'filtros$eleccion'.", call. = FALSE)
   }
   
-  if (length(filtros$provincias) == 0) {
-    stop(
-      "Es necesario indicar al menos una provincia en 'filtros$provincias'.",
-      call. = FALSE
-    )
-  }
-  
   # Relación de municipios ----
   relmun <- relmun |>
     dplyr::mutate(COD = as.integer(COD))
@@ -202,8 +306,12 @@
   # Resultados electorales ----
   
   ds_res <- arrow::open_dataset(ruta_resultados) |>
-    dplyr::filter(fecha_eleccion == filtros$eleccion) |>
-    dplyr::filter(prov %in% filtros$provincias)
+    dplyr::filter(fecha_eleccion == filtros$eleccion)
+  
+  # Sin provincias (NULL / vacío) = todas las provincias
+  if (length(filtros$provincias) > 0) {
+    ds_res <- ds_res |> dplyr::filter(prov %in% filtros$provincias)
+  }
   
   if (length(filtros$municipios) > 0) {
     ds_res <- ds_res |> dplyr::filter(provmun %in% filtros$municipios)
@@ -220,11 +328,9 @@
   variables_generales <- c(
     "seccion_id",
     "provmun",
-    "censo_escrutinio",
     "participacion_pct",
-    "votos_validos",
-    "votos_blancos",
-    "votos_nulos"
+    "votos_emitidos",
+    "votos_validos"
   )
   
   if (length(partidos) > 0) {
@@ -320,6 +426,9 @@
       datos$ganador <- NA_character_
     }
   }
+  
+  # Texto del tooltip ----
+  datos$hover <- .construir_hover(datos, partidos)
   
   datos
 }
@@ -418,24 +527,13 @@
     leyenda_valores <- rango
   }
   
-  nombre_mun <- if ("NOMBRE" %in% names(datos)) {
-    datos$NOMBRE
-  } else if ("DENOMINACION" %in% names(datos)) {
-    datos$DENOMINACION
-  } else {
-    rep("", nrow(datos))
+  # Tooltip: el texto se prepara en .obtener_datos_mapa (columna "hover")
+  if (!"hover" %in% names(datos)) {
+    stop("Falta la columna 'hover' en datos (salida de .obtener_datos_mapa).",
+         call. = FALSE)
   }
   
-  etiquetas <- lapply(
-    sprintf(
-      "<b>%s</b><br>Sección: %s<br>%s: %s",
-      htmltools::htmlEscape(ifelse(is.na(nombre_mun), "", nombre_mun)),
-      datos$cusec,
-      htmltools::htmlEscape(titulo),
-      htmltools::htmlEscape(texto_valor)
-    ),
-    htmltools::HTML
-  )
+  etiquetas <- lapply(datos$hover, htmltools::HTML)
   
   # Mapa ----
   

@@ -16,7 +16,7 @@ ruta_relmunicipios <- file.path(
 
 # Valores territoriales ----
 FILTROSXDEFECTO <- list(
-  provincias = c(28L),
+  provincias = NULL,
   municipios = NULL,
   distritos = NULL,
   secciones = NULL,
@@ -60,9 +60,13 @@ PARTIDOS <- names(PALETA)
 PARTIDOS_INICIALES <- c(
   "PSOE",
   "PP",
-  "PODEMOS",
   "SUMAR",
-  "VOX"
+  "VOX",
+  "PNV",
+  "ERC",
+  "CIU_JUNTS",
+  "HB_EH_BILDU",
+  "BNG"
 )
 
 # Provincias ----
@@ -123,7 +127,6 @@ COD_PROV_INE <- c(
 
 # Elecciones al congreso ----
 COD_ELECCIONES <- c(
-  `200003` = "12 de marzo de 2000",
   `200403` = "14 de marzo de 2004",
   `200803` = "9 de marzo de 2008",
   `201111` = "20 de noviembre de 2011",

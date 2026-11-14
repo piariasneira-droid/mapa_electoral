@@ -1,0 +1,13 @@
+name: mapa_electoral
+title: mapa_electoral
+username: pabloivanariasneira
+account: pabloivanariasneira
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 18439826
+bundleId: 12819189
+url: https://pabloivanariasneira.shinyapps.io/mapa_electoral/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .Renviron

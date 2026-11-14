@@ -826,15 +826,22 @@
 .escribir_geoparquet <- function(
     datos,
     anho,
+    keep_per = 0.10,
     output_dir
 ) {
   message("  Simplificando geometrías...")
   
-  datos <- rmapshaper::ms_simplify(
-    datos,
-    keep = 0.10,
-    keep_shapes = TRUE
-  )
+  if (keep_per < 1) {
+    message("  Simplificando geometrías (keep = ", keep_per, ")...")
+    
+    datos <- rmapshaper::ms_simplify(
+      datos,
+      keep = keep_per,
+      keep_shapes = TRUE
+    )
+  } else {
+    message("  Saltando simplificación (keep_per >= 1)...")
+  }
   
   datos <- datos |>
     sf::st_make_valid() |>
@@ -867,7 +874,8 @@
 }
 
 .procesar_anho_geoparquet <- function(
-    anho
+    anho,
+    keep_perct = 0.10
 ) {
   
   message("")
@@ -971,6 +979,7 @@
   tamanho_mb <- .escribir_geoparquet(
     datos = secciones,
     anho = anho,
+    keep_per = keep_perct,
     output_dir = output_dir
   )
   

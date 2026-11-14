@@ -1,19 +1,43 @@
 # Utilidades ----
+# Los ficheros del INE están en Latin-1. readr convierte a UTF-8 al leer con
+# este locale; NO hay que volver a pasar iconv() por encima (doble conversión).
+.locale_ine <- readr::locale(encoding = "Latin1")
+
 .read_fwf <- function(fichero, ancho, nombres){
   read_fwf(
     fichero,
     fwf_widths(ancho, nombres),
     col_types = cols(.default = "c"),
-    locale = locale(encoding = "Latin1"),
+    locale = .locale_ine,
     trim_ws = FALSE,
     progress = FALSE
-  ) |>
-    mutate(
-      across(
-        where(is.character),
-        ~ iconv(.x, from = "Latin1", to = "UTF-8")
-      )
+  )
+}
+
+# Lectura de líneas independiente del sistema (Windows/Linux/macOS):
+# devuelve siempre UTF-8, sin depender del locale nativo de R.
+.leer_lineas <- function(fichero){
+  readr::read_lines(
+    fichero,
+    locale = .locale_ine,
+    progress = FALSE
+  )
+}
+
+# Localiza "<prefijo><codigo>.DAT" ignorando mayúsculas/minúsculas
+# (en Linux el sistema de ficheros distingue .DAT de .dat).
+.ruta_fichero <- function(path, prefijo, codigo){
+  esperado <- tolower(paste0(prefijo, codigo, ".dat"))
+  ficheros <- list.files(path, full.names = TRUE)
+  ruta <- ficheros[tolower(basename(ficheros)) == esperado]
+  
+  if (length(ruta) != 1) {
+    stop(
+      "Se esperaba exactamente 1 fichero '", esperado, "' en ", path,
+      " y se encontraron ", length(ruta)
     )
+  }
+  ruta
 }
 
 # Lectura congreso pipeline ----
@@ -21,46 +45,55 @@ leer_proceso_congreso <- function(path){
   
   fich <- list.files(
     path,
-    pattern = "^01.*\\.DAT$",
+    pattern = "^01.*\\.dat$",
+    ignore.case = TRUE,
     full.names = FALSE
   )
   
+  if (length(fich) != 1) {
+    stop(
+      "Se esperaba exactamente 1 fichero 01*.DAT en ", path,
+      " y se encontraron ", length(fich)
+    )
+  }
+  
   codigo <- sub(
-    "^01(.*)\\.DAT$",
+    "^01(.*)\\.dat$",
     "\\1",
-    fich
+    fich,
+    ignore.case = TRUE
   )
   
   list(
-    control = readLines(
-      file.path(path, paste0("01", codigo, ".DAT"))
+    control = .leer_lineas(
+      .ruta_fichero(path, "01", codigo)
     ),
-    identificacion = readLines(
-      file.path(path, paste0("02", codigo, ".DAT"))
+    identificacion = .leer_lineas(
+      .ruta_fichero(path, "02", codigo)
     ),
     candidaturas = .leer_candidaturas_03(
-      file.path(path, paste0("03", codigo, ".DAT"))
+      .ruta_fichero(path, "03", codigo)
     ),
     candidatos = .leer_candidatos_04(
-      file.path(path, paste0("04", codigo, ".DAT"))
+      .ruta_fichero(path, "04", codigo)
     ),
     datos_municipio = .leer_municipios_05(
-      file.path(path, paste0("05", codigo, ".DAT"))
+      .ruta_fichero(path, "05", codigo)
     ),
     votos_municipio = .leer_candidaturas_municipio_06(
-      file.path(path, paste0("06", codigo, ".DAT"))
+      .ruta_fichero(path, "06", codigo)
     ),
     datos_ambito = .leer_ambito_superior_07(
-      file.path(path, paste0("07", codigo, ".DAT"))
+      .ruta_fichero(path, "07", codigo)
     ),
     votos_ambito = .leer_candidaturas_ambito_08(
-      file.path(path, paste0("08", codigo, ".DAT"))
+      .ruta_fichero(path, "08", codigo)
     ),
     mesas = .leer_mesas_09(
-      file.path(path, paste0("09", codigo, ".DAT"))
+      .ruta_fichero(path, "09", codigo)
     ),
     votos_por_mesa = .leer_votosxcandidatura_10(
-      file.path(path, paste0("10", codigo, ".DAT"))
+      .ruta_fichero(path, "10", codigo)
     )
   )
   

@@ -12,7 +12,7 @@ source("scr/lectura_mesas/fun/lectura_congreso_interim.R")
 ruta_generales <- "interim/generales"
 dir_output <- "output/generales/mesas_espana"
 
-fecha_minima <- "200001"
+fecha_minima <- "200403"
 
 filccaa <- NULL
 filprov <- NULL
@@ -22,9 +22,6 @@ filsec  <- NULL
 filmesa <- NULL
 
 var_censo_problem <- 30
-
-# Configuración ----
-fecha_minima <- 200001
 
 partidos_principales <- c(
   "PSOE",
@@ -291,7 +288,8 @@ votos_ancho <- votos_partido_mesa |>
     names_from = familia_partido,
     values_from = votos,
     values_fill = 0L,
-    names_prefix = "votos_"
+    names_prefix = "votos_",
+    names_expand = TRUE
   )
 
 mesas_resultados <- mesas_historico |>

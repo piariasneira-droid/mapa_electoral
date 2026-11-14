@@ -28,7 +28,7 @@ input_dir <- file.path(
 
 output_dir <- file.path(
   "output",
-  "geo_parquet"
+  "geo_parquet_full"
 )
 
 output_log <- file.path(
@@ -48,6 +48,8 @@ dir.create(
   showWarnings = FALSE
 )
 
+keep_percentage <-  1
+
 # Ejecución ----
 
 resultados <- lapply(
@@ -57,7 +59,8 @@ resultados <- lapply(
     tryCatch(
       
       .procesar_anho_geoparquet(
-        anho = anho
+        anho = anho,
+        keep_perct = keep_percentage
       ),
       
       error = function(e) {

@@ -102,6 +102,7 @@ function(
         selected = seleccion_actual
       )
     },
+    ignoreNULL = FALSE,   # al quitar todas las provincias también hay que vaciar municipios
     ignoreInit = TRUE,
     priority = 100
   )
@@ -201,10 +202,6 @@ function(
         input$eleccion
       )
       
-      shiny::req(
-        input$provincias
-      )
-      
       # Inicio de la medición total
       inicio_total <- proc.time()[["elapsed"]]
       
@@ -284,10 +281,14 @@ function(
           
           message(
             "Provincias: ",
-            paste(
-              filtros$provincias,
-              collapse = ", "
-            )
+            if (length(filtros$provincias) == 0) {
+              "Todas"
+            } else {
+              paste(
+                filtros$provincias,
+                collapse = ", "
+              )
+            }
           )
           
           message(
@@ -513,12 +514,18 @@ function(
       length(codigos_municipios) == 0
     ) {
       
-      etiqueta_territorio <- paste0(
-        length(
-          objeto$filtros$provincias
-        ),
-        " provincia(s), todos sus municipios"
-      )
+      etiqueta_territorio <- if (
+        length(objeto$filtros$provincias) == 0
+      ) {
+        "Toda España"
+      } else {
+        paste0(
+          length(
+            objeto$filtros$provincias
+          ),
+          " provincia(s), todos sus municipios"
+        )
+      }
       
     } else {
       

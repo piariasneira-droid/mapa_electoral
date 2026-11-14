@@ -32,6 +32,13 @@
     )
 }
 
+# .reparar_mojibake <- function(x) {
+#   y <- iconv(x, from = "UTF-8", to = "latin1")
+#   Encoding(y) <- "UTF-8"
+#   dplyr::if_else(!is.na(y) & validUTF8(y), y, x)
+# }
+
+
 #Lectura elecciones ----
 .leer_eleccion_congreso <- function(periodo){
   base <- file.path(
@@ -209,10 +216,7 @@
     dplyr::coalesce(denominacion, ""),
     sep = " "
   ) |>
-    iconv(
-      from = "",
-      to = "ASCII//TRANSLIT"
-    ) |>
+    stringi::stri_trans_general("Latin-ASCII") |>
     stringr::str_to_upper() |>
     stringr::str_squish()
   
